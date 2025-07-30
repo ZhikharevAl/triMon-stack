@@ -1,0 +1,82 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus_GR01:9090']
+
+  - job_name: 'newmock-app-actuator'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['newmock-container:8080']
+        labels:
+          application: 'newmock-app'
+
+
+  - job_name: 'telegraf'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['Telegraf_GR01:9273']
+
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter_GR01:9187']
+
+
+  - job_name: 'hello-jmx-gr01'
+    static_configs:
+      - targets: ['192.168.14.80:8888']  #  внутренний IP
+    scrape_interval: 15s
+
+
+  - job_name: 'telegraf-centos-system'
+    static_configs:
+      - targets: ['192.168.14.80:9273']
+        labels:
+          host: 'centos-dev-boomq'
+          environment: 'production'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+
+
+  - job_name: 'backend-jmx-centos'
+    static_configs:
+      - targets: ['192.168.14.80:7777']
+        labels:
+          application: 'backend'
+          host: 'centos-dev-boomq'
+          service: 'java-backend'
+          component: 'jmx'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+  - job_name: 'backend-actuator-centos'
+    static_configs:
+      - targets: ['192.168.14.80:7778']
+        labels:
+          application: 'backend'
+          host: 'centos-dev-boomq'
+          service: 'java-backend'
+          component: 'actuator'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+
+      #  - job_name: 'backend-health-centos'
+    #    static_configs:
+      #      - targets: ['192.168.14.80:7011']
+        #        labels:
+          #          application: 'backend'
+            #          host: 'centos-dev-boomq'
+            #          service: 'java-backend'
+            #          component: 'health'
+            #    scrape_interval: 30s
+      #    scrape_timeout: 10s
+      #    metrics_path: '/actuator/health'

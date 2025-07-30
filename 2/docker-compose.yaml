@@ -1,0 +1,159 @@
+services:
+  influxdb_GR01:
+    image: influxdb:1.8
+    container_name: influxdb_GR01
+    ports:
+      - "8086:8086"
+    volumes:
+      - /home/user01/influxdb:/var/lib/influxdb
+      - /home/user01/influxdb/scripts:/docker-entrypoint-initdb.d
+    networks:
+      - monitor-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: "6g"
+          cpus: "1"
+    restart: unless-stopped
+
+  prometheus_GR01:
+    image: prom/prometheus:latest
+    container_name: prometheus_GR01
+    ports:
+      - "9090:9090"
+    volumes:
+      - /home/user01/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - monitor-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: "2g"
+          cpus: "0.3"
+    restart: unless-stopped
+
+  grafana_GR01:
+    image: grafana/grafana:latest
+    container_name: grafana_GR01
+    ports:
+      - "3001:3000"
+    volumes:
+      - /home/user01/grafana/data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - monitor-net
+    depends_on:
+      influxdb_GR01:
+        condition: service_healthy
+      prometheus_GR01:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: "512m"
+          cpus: "0.1"
+    restart: unless-stopped
+
+  Telegraf_GR01:
+    image: telegraf:latest
+    container_name: Telegraf_GR01
+    user: telegraf:998
+    privileged: true
+    environment:
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+      - HOST_ETC=/host/etc
+    volumes:
+      - /dev:/dev:ro
+      - /run/udev:/run/udev:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc:/host/etc:ro
+      - /home/user01/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      - monitor-net
+    depends_on:
+      influxdb_GR01:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: "512m"
+          cpus: "0.1"
+    restart: unless-stopped
+
+  newmock-app:
+    image: newmock-app
+    container_name: newmock-container
+    ports:
+      - "8081:8080"
+      - "9999:9999"
+    environment:
+      - JAVA_OPTS=-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=9999 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.rmi.port=9999 -Djava.rmi.server.hostname=0.0.0.0 -Dcom.sun.management.jmxremote.local.only=false
+    networks:
+      - monitor-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: "768m"
+          cpus: "0.2"
+    restart: unless-stopped
+    
+  postgres-exporter_GR01:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres-exporter_GR01
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@192.168.14.80:5432/postgres?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+      PG_EXPORTER_DISABLE_DEFAULT_METRICS: "false"
+      PG_EXPORTER_DISABLE_SETTINGS_METRICS: "false"
+    ports:
+      - "9190:9187"
+    volumes:
+      - /home/user01/postgres_queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    networks:
+      - monitor-net
+    deploy:
+      resources:
+        limits:
+          memory: "128m"
+          cpus: "0.05"
+    restart: unless-stopped
+
+volumes:
+  prometheus_data:
+
+networks:
+  monitor-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.27.0.0/16
