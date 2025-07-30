@@ -1,0 +1,27 @@
+services:
+  telegraf_srv3:
+    image: telegraf:latest
+    container_name: telegraf_srv3
+    privileged: true
+    user: telegraf:995
+    environment:
+      - HOST_PROC=/host/proc
+    volumes:
+      - /dev:/dev:ro
+      - /run/udev:/run/udev:ro
+      - /proc:/host/proc:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./telegraf_srv3.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      - monitor-net
+    deploy:
+      resources:
+        limits:
+          memory: "512m"
+          cpus: "0.1"
+    restart: unless-stopped
+
+networks:
+  monitor-net:
+    driver: bridge
+
