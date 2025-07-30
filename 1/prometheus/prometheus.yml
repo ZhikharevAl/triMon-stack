@@ -1,0 +1,9 @@
+scrape_configs:
+  - job_name: 'hello-jmx-agent'
+    static_configs:
+      - targets: ['172.22.0.5:8888']
+
+  - job_name: 'telegraf-centos'
+    static_configs:
+      - targets: ['telegraf_host_netGR01:9273']
+
