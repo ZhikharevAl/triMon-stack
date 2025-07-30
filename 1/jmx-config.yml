@@ -1,0 +1,6 @@
+tartDelaySeconds: 0
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
+rules:
+- pattern: ".*"

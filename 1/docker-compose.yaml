@@ -1,0 +1,66 @@
+
+services:
+
+  prometheus_GR01:
+    image: prom/prometheus:latest
+    container_name: prometheus_GR01
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=200h'
+    networks:
+      - monitor-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: "512m"
+          cpus: "0.1"
+
+  telegraf_srv2:
+    image: telegraf:latest
+    container_name: telegraf_host_netGR01
+    ports:
+      - "9273:9273"
+    user: telegraf:995
+    environment:
+      - HOST_PROC=/host/proc
+    volumes:
+      - /dev:/dev:ro
+      - /run/udev:/run/udev:ro
+      - /proc:/host/proc:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./telegraf_srv2.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      - monitor-net
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: "512m"
+          cpus: "0.1"
+
+  hello-jmx-agent:
+    build:
+      context: ./hello-jmx-dir
+    container_name: hello-jmx-agent
+    ports:
+      - "8888:8888"
+    networks:
+      - monitor-net
+    restart: unless-stopped
+  
+
+networks:
+  monitor-net:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+
